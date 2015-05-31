@@ -4,6 +4,7 @@ import java.awt.event.*;
 import java.awt.geom.*;
 import java.awt.font.*;
 
+import java.io.*;
 import javax.swing.*;
 
 import java.util.*;
@@ -11,52 +12,87 @@ import java.util.*;
 public class Cluster extends JFrame 
 {
     private static int NUM_CLUSTERS;    // Total clusters.
-    private static int TOTAL_DATA;  // Total data points.
+    private static int TOTAL_DATA;      // Total data points.
+    private static String inputFile="transactions_sorted.txt";
+
     private static final int PAD = 20;
     
     private static ArrayList<Data> dataSet = new ArrayList<Data>();
     private static ArrayList<Centroid> centroids = new ArrayList<Centroid>();
 
+    private static ArrayList<String> users = new ArrayList<String>();
+    private static ArrayList<Transaction> transactions = new ArrayList<Transaction>();
+    
     private static int width, height, CanvasWidth, CanvasHeight;
     private static Graphics2D  g2d ;
     private static JFrame frame;
     private static Insets insets;
     private static DrawingCanvas canvas;
-/*
- 	 static double SAMPLES[][] = new double[][] { { 1.0, 1.0 },
-							{ 1.5, 2.0 }, 
-							{ 3.0, 4.0 }, 
-							{ 5.0, 7.0 }, 
-							{ 3.5, 5.0 },
-							{ 4.5, 5.0 },
-							{ 3.5, 4.5 } };
-*/
- 	 static double SAMPLES[][] = new double[][] { { 1.0, 1.0 },
-							{ 1.5, 2.0 }, 
-							{ 3.0, 4.0 }, 
-							{ 5.0, 7.0 }, 
-							{ 3.5, 5.0 },
-							{ 4.5, 5.0 },
-							{ 6.5, 2.0 }, 
-							{ 3.0, 1.0 }, 
-							{ 3.0, 5.0 }, 
-							{ 3.5, 6.0 },
-							{ 7.5, 7.0 },
-							{ 8.5, 8.5 } };
-	public static void initialize() {
+    
+    private static double[] sse;
+    private static double[] sseCount;
+    
+    static double SAMPLES[][];
+	
+    public static void initialize() {
 		
 		String input = JOptionPane.showInputDialog(frame, "Enter the value of K (NUMBER ONLY)");
 		int k = Integer.parseInt(input);
 		// Initializing Centroids depending on how many K is
-		TOTAL_DATA = SAMPLES.length;
 		NUM_CLUSTERS = k;
-
-		System.out.println("Centroids initialised:");
+		sse = new double[k];
+		sseCount = new double[k];
 	
-		for(int i = 0; i < NUM_CLUSTERS; i++)
+                // read data file
+                try
+                {
+                  File dir  = new File(".");
+                  File finp = new File(dir.getCanonicalPath() + File.separator + inputFile); 
+                  readFile(finp); 
+                } catch (IOException x) {
+                  System.err.format("IOException: %s%n", x);
+                }
+               
+		TOTAL_DATA = transactions.size();
+
+                // determine size of SAMPLES
+                SAMPLES = new double [TOTAL_DATA][2];
+		
+                // fill SAMPLES
+                int current_user=-1;
+                int l = -1;
+
+		for(int i = 0; i < transactions.size(); i++)
 		{
-		   centroids.add(new Centroid(Math.random()*10, Math.random()*10)); 
-		   System.out.println(centroids.get(i).X() + ", " + centroids.get(i).Y());
+                    String str = transactions.get(i).lastName();
+                    //find user index
+                    int j = 0 ;
+                    boolean contains = false;
+                    for ( String user : users )
+                    {
+                      if ( str.equals(user))
+                      {
+                         contains = true;
+                         break; // No need to look further.
+                      }
+                      j++;
+                   }
+                   SAMPLES[i][0] = j;
+                   SAMPLES[i][1] = transactions.get(i).offerNumber();
+		}
+		
+
+		System.out.println("Total data: "+ TOTAL_DATA + " Centroids initialised: ");
+/*	
+		for(int i = 0; i < TOTAL_DATA; i++)
+		{
+		   System.out.format( "%d, %d%n",(int)SAMPLES[i][0], (int)SAMPLES[i][1] );
+		}
+*/	
+     	        for(int i = 0; i < NUM_CLUSTERS; i++)
+		{
+		   centroids.add(new Centroid(Math.random()*users.size(), Math.random()*users.size())); 
+		   System.out.format( "%f, %f%n",centroids.get(i).X(), centroids.get(i).Y());
 		}
 		
 		System.out.print("\n");
@@ -64,20 +100,20 @@ public class Cluster extends JFrame
 	}
 
 	public static void kMeans()
- {
-        final double bigNumber = Math.pow(10, 10);    // some big number that's sure to be larger than our data range.
-        double minimum = bigNumber;                   // The minimum value to beat. 
-        double distance = 0.0;                        // The current minimum value.
-        int sampleNumber = 0;
-        int cluster = 0;
-        boolean isStillMoving = true;
-        Data newData = null;
+        {
+            final double bigNumber = Math.pow(10, 10);    // some big number that's sure to be larger than our data range.
+            double minimum = bigNumber;                   // The minimum value to beat. 
+            double distance = 0.0;                        // The current minimum value.
+            int sampleNumber = 0;
+            int cluster = 0;
+            boolean isStillMoving = true;
+            Data newData = null;
 
-		Euclidean euc = new Euclidean();
+            Euclidean euc = new Euclidean();
 
-		// Add in new data, one at a time, recalculating centroids with each new
-		// one.
-		while (dataSet.size() < TOTAL_DATA) {
+		
+	    while (dataSet.size() < TOTAL_DATA)
+            {
 			newData = new Data(SAMPLES[sampleNumber][0],SAMPLES[sampleNumber][1]);
 			dataSet.add(newData);
 			minimum = bigNumber;
@@ -162,8 +198,8 @@ public class Cluster extends JFrame
 		// Create and set up the window.
 		frame = new JFrame("KMeans");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	        frame.setSize(width,height);
-	        frame.setLocation(200,200);
+	    frame.setSize(width,height);
+	    frame.setLocation(200,200);
 		frame.setLayout(null);
 
 		// Size and display the window.
@@ -227,8 +263,8 @@ public class Cluster extends JFrame
 	              } 
 	           }
 	           // create axis twixce as big as max values
-	           xmaxval=2.0f*xmaxval;
-	           ymaxval=2.0f*ymaxval;
+	           //xmaxval=1.1f*xmaxval;
+	           //ymaxval=1.1f*ymaxval;
 
 	 
 	           //System.out.println("xmin="+xminval+" xmax="+xmaxval+" ymin="+yminval+" ymax="+ymaxval );	
@@ -278,8 +314,8 @@ public class Cluster extends JFrame
 	              {
 	                 if(dataSet.get(j).cluster() == i)
 	                 {
-	                    float x = PAD + (float) ( dataSet.get(j).X() * scale ); 
-	                    float y = h - PAD - (float) ( dataSet.get(j).Y() * scale );
+	                    float x = PAD + (float) ( dataSet.get(j).X() * xScale ); 
+	                    float y = h - PAD - (float) ( dataSet.get(j).Y() * yScale );
 	                    g2.fill(new Ellipse2D.Float(x-2, y-2, 4, 4));
 	                 }
 	              }
@@ -330,13 +366,108 @@ public class Cluster extends JFrame
 	            g2d.rotate(-angle, x0, y0);
 	        }
 	    }
+/*
+ * 		SSE CALCULATION AFTER CLUSTERING
+ */
+	   public static void sse()
+	   {
+		   Euclidean euc = new Euclidean();
+		   double count = 0;
+		   
+		   for(int i = 0; i < NUM_CLUSTERS; i++)
+	           {
+	            count = 0;
+		    System.out.println("Cluster " + i + " includes:");
+	            for(int j = 0; j < TOTAL_DATA; j++)
+	            {
+	                if(dataSet.get(j).cluster() == i)
+	                {
+	                    //System.out.println("     (" + dataSet.get(j).X() + ", " + dataSet.get(j).Y() + ")");
+                            // translate back to user / offerte
+                            System.out.println("     (" + users.get((int)dataSet.get(j).X()) + 
+                                                   ", " + (int)dataSet.get(j).Y() + ")");
 
+	                    sse[i] = sse[i] + euc.calculate(dataSet.get(j), centroids.get(i));
+	                    count++;
+	                }
+	             
+	            }
+	            if ( count == 0 )
+                    {
+	               System.out.println("SSE = empty");
+                    }
+                    else
+                    {
+                       sse[i] = sse[i]/count;
+	               System.out.println("SSE = "+sse[i]);
+                    }
+	        }
+	   }
 	   
-	   public static void main(String[] args)
-	    {
+	   public static void silhouette()
+	   {
+		   Euclidean euc = new Euclidean();
+		   double temp = 0;
+		   double count = 0;
+		   
+		   for(int i = 0; i < NUM_CLUSTERS; i++)
+	        {
+	          count = 0;
+			   System.out.println("Cluster " + i + " includes:");
+	            for(int j = 0; j < TOTAL_DATA; j++)
+	            {
+	                if(dataSet.get(j).cluster() == i)
+	                {
+	                 System.out.println("SUM = "+sse[i]/euc.calculate(dataSet.get(j), centroids.get(i)));
+	                }
+	             
+	            }
+	        }
+	   }
+	   
+          private static void readFile(File finp) throws IOException
+          {
+
+             // Construct BufferedReader from FileReader
+  	     BufferedReader br = new BufferedReader(new FileReader(finp));
+ 
+             String line = null;
+	     while ((line = br.readLine()) != null)
+             {
+                String[] elements = line.split(","); 
+                String str = elements[0];
+                //add only unique users 
+                boolean contains = false;
+                for ( String user : users )
+                {
+                   if ( str.equals(user))
+                   {
+                      contains = true;
+                      break; // No need to look further.
+                   }
+                }
+                if ( ! contains )
+                {
+                  users.add(str);
+                } 
+
+                // and transaction
+		transactions.add(new Transaction(str,Integer.valueOf(elements[1])));
+	     }
+  	     br.close();
+          }	   
+	   
+	  public static void main(String[] args)
+	  {
 	        initialize();     
+
 	        kMeans();
 	        plot();
+
+	        sse();
+	        silhouette();
+
+/*
 
         // Print out clustering results.
         for(int i = 0; i < NUM_CLUSTERS; i++)
@@ -359,7 +490,7 @@ public class Cluster extends JFrame
         }
         System.out.print("\n");
 
-
+*/
 
 	 }
 	   
